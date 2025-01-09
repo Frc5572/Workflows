@@ -1,0 +1,5 @@
+requests
+packaging
+PyGithub
+GitPython
+Jinja2
