@@ -35,4 +35,4 @@ jobs:
         context: "./vendor-update"
         file: "./vendor-update/Dockerfile"
         push: true
-        tags: ${{ env.REGISTRY }}/Frc5572/Worflows/vendor-update:${{ env.GITHUB_REF_NAME }}
+        tags: ${{ env.REGISTRY }}/Frc5572/Worflows/vendor-update:${{ github.ref_name }}

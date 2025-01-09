@@ -24,4 +24,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_BRANCH: ${{ inputs.base_branch }}
-          REPO_PATH: ${{ env.GITHUB_REPOSITORY }}
+          REPO_PATH: ${{ github.repository }}
