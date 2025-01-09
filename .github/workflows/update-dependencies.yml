@@ -12,18 +12,16 @@ on:
         type: string
         default: main
 
+permissions:
+  packages: read
+  contents: write
+  pull-requests: write
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   vendor-update-check:
     name: Check for Vendor Updates
     runs-on: ubuntu-latest
-    container: 
-      image: ghcr.io/frc5572/workflows/vendor-update:${{ inputs.version }}       
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    permissions:
-      packages: read
+    container: ghcr.io/frc5572/workflows/vendor-update:${{ inputs.version }}
     steps:
       - name: Update Git
         run: |
