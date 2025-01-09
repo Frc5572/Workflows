@@ -6,6 +6,10 @@ name: FRC CI Checks
 on:
   workflow_call:
 
+env:
+  PAGES_DIR: "./build/docs/javadoc"
+  PAGES_ARTIFACT_NAME: javadocs
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   linting:
@@ -60,8 +64,8 @@ jobs:
       run: ./gradlew javadoc
     - uses: actions/upload-artifact@v4
       with:
-        name: javadocs
-        path: './build/docs/javadoc'
+        name: ${{ env.PAGES_ARTIFACT_NAME }}
+        path: ${{ env.PAGES_DIR }}
   deploy-javadoc:
     if: success() && github.ref_name == github.event.repository.default_branch
     environment:
@@ -82,10 +86,14 @@ jobs:
     steps:
     - uses: actions/download-artifact@v4
       with:
-        name: javadocs
-        path: './build/docs/javadoc'
+        name: ${{ env.PAGES_ARTIFACT_NAME }}
+        path: ${{ env.PAGES_DIR }}
     - name: Setup Pages
       uses: actions/configure-pages@v5
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v1
+      with:
+        path: ${{ env.PAGES_DIR }}
     - name: Deploy to Github Pages
       id: deployment
       uses: actions/deploy-pages@v4
