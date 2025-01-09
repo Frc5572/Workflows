@@ -9,13 +9,17 @@ on:
         required: true
         type: string
         default: main
+      version:
+        required: true
+        type: string
+        default: main
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   vendor-update-check:
     name: Linting
     runs-on: ubuntu-latest
-    container: ghcr.io/Frc5572/Worflows/vendor-update:main
+    container: ghcr.io/Frc5572/Worflows/vendor-update:${{ inputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
