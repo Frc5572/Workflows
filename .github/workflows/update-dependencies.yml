@@ -6,11 +6,9 @@ on:
   workflow_call:
     inputs:
       base_branch:
-        required: true
         type: string
         default: main
       version:
-        required: true
         type: string
         default: main
 
