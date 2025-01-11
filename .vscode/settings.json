@@ -1,0 +1,8 @@
+{
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "terminal.integrated.defaultProfile.windows": "Git Bash"
+}

@@ -1,17 +1,18 @@
 import json
+import os
 import re
 import sys
 from pathlib import Path
-import os
 
 import requests
 from git import Repo, exc
 from github import Auth, Github, PullRequest
-from packaging.version import parse
 from jinja2 import Template
+from packaging.version import parse
 
-
-REGEX = r"(?P<name>[^\s-]+)(?P<versioned>-\d+\.\d+\.\d+)?"
+VENDOR_REGEX = r"(?P<name>[^\s-]+)(?P<versioned>-\d+\.\d+\.\d+)?"
+VERSION = r"(?P<wpilib_version>\d+\.\d+\.\d+)"
+WPILIB_REGEX = rf'(id "edu\.wpi\.first\.GradleRIO" version )"{VERSION}"'
 UPDATED_DEPS = []
 BRANCH_NAME = "vendordeps-update"
 SCRIPT_PATH = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
@@ -30,12 +31,36 @@ if __name__ == "__main__":
     new_branch = repo.create_head(BRANCH_NAME)
     new_branch.checkout(force=True)
 
+    print("Checking for WPILIB Updates")
+    update_wpilib = False
+    build_gradle = Path.cwd().joinpath("build.gradle")
+    with build_gradle.open(mode="r", encoding="utf-8") as f:
+        build_file = f.read()
+    # print(build_file)
+    wpilib_re = re.search(WPILIB_REGEX, build_file, re.MULTILINE)
+    print(wpilib_re)
+    wpilib_version = wpilib_re.groupdict().get("wpilib_version", None)
+    if wpilib_version is None:
+        print("Could not determine current WPILIB version")
+        sys.exit(1)
+    wpilib_repo = g.get_repo("wpilibsuite/allwpilib")
+    wpilib_latest_version = wpilib_repo.get_latest_release().tag_name.replace("v", "")
+    if parse(wpilib_latest_version) > parse(wpilib_version):
+        print(f"New WPILIB Version: {wpilib_latest_version}. Updating build.gradle.")
+        with build_gradle.open(mode="w", encoding="utf-8") as f:
+            new_build = re.sub(WPILIB_REGEX, rf'\1"{wpilib_latest_version}"', build_file)
+            f.write(new_build)
+        update_wpilib = True
+        repo.git.add("build.gradle")
+    else:
+        print("No new version of WPILIB.")
+    print("Checking for Vendor Dep Updates")
     _dir = Path.cwd().joinpath("vendordeps")
     for file in _dir.glob("*.json"):
         print(file.stem)
         with file.open(mode="r", encoding="utf-8") as f:
             vendor: dict = json.load(f)
-        file_regex = re.match(REGEX, file.stem)
+        file_regex = re.match(VENDOR_REGEX, file.stem)
         json_url = vendor.get("jsonUrl", None)
         version = vendor.get("version")
         if json_url is None or json_url == "":
@@ -62,11 +87,14 @@ if __name__ == "__main__":
     untracked = repo.untracked_files
     diffs = [x.a_path for x in repo.index.diff(None)]
     modified_deps = [x for x in untracked + diffs if x.startswith("vendordeps")]
-    if len(modified_deps) == 0:
+    if len(modified_deps) > 0:
+        repo.git.add("vendordeps/*")
+    else:
         print("No vendor updates")
+    if len(modified_deps) == 0 and not update_wpilib:
         sys.exit(0)
-    repo.git.add("vendordeps/*")
-    repo.index.commit("Updating Vendor Dependencies again")
+
+    repo.index.commit("Updating Vendor Dependencies and WPILIB")
     repo.git.push("--force", "--set-upstream", "origin", repo.head.ref)
 
     gh_repo = g.get_repo(REPO_PATH)
