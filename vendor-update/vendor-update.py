@@ -36,9 +36,7 @@ if __name__ == "__main__":
     build_gradle = Path.cwd().joinpath("build.gradle")
     with build_gradle.open(mode="r", encoding="utf-8") as f:
         build_file = f.read()
-    # print(build_file)
     wpilib_re = re.search(WPILIB_REGEX, build_file, re.MULTILINE)
-    print(wpilib_re)
     wpilib_version = wpilib_re.groupdict().get("wpilib_version", None)
     if wpilib_version is None:
         print("Could not determine current WPILIB version")
@@ -52,6 +50,13 @@ if __name__ == "__main__":
             f.write(new_build)
         update_wpilib = True
         repo.git.add("build.gradle")
+        UPDATED_DEPS.append(
+            {
+                "name": "WPILib",
+                "old_version": wpilib_version,
+                "new_version": wpilib_latest_version,
+            }
+        )
     else:
         print("No new version of WPILIB.")
     print("Checking for Vendor Dep Updates")
