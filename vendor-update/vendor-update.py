@@ -21,6 +21,7 @@ BASE_BRANCH = os.getenv("BASE_BRANCH", "main")
 REPO_PATH = os.getenv("REPO_PATH", None)
 PR_TITLE = []
 
+
 if __name__ == "__main__":
     auth = Auth.Token(GITHUB_TOKEN)
     g = Github(auth=auth)
@@ -44,9 +45,8 @@ if __name__ == "__main__":
             # Rename the rebased branch to the original branch name
             rebase_branch.rename(current_branch)
             # Update the remote branch (if needed)
-            # repo.remotes.origin.push(force=True)
     except exc.GitCommandError:
-        repo.git.checkout('-b', BRANCH_NAME)
+        repo.git.checkout("-b", BRANCH_NAME)
 
     print("Checking for WPILIB Updates")
     update_wpilib = False
@@ -63,7 +63,9 @@ if __name__ == "__main__":
     if parse(wpilib_latest_version) > parse(wpilib_version):
         print(f"New WPILIB Version: {wpilib_latest_version}. Updating build.gradle.")
         with build_gradle.open(mode="w", encoding="utf-8") as f:
-            new_build = re.sub(WPILIB_REGEX, rf'\1"{wpilib_latest_version}"', build_file)
+            new_build = re.sub(
+                WPILIB_REGEX, rf'\1"{wpilib_latest_version}"', build_file
+            )
             f.write(new_build)
         update_wpilib = True
         repo.git.add("build.gradle")
@@ -129,7 +131,9 @@ if __name__ == "__main__":
         body = Template(f.read()).render(deps=UPDATED_DEPS)
     title = f"{" and ".join(PR_TITLE)} Updates"
     if pulls.totalCount == 0:
-        gh_repo.create_pull(base=BASE_BRANCH, head=BRANCH_NAME, title=title, body=body, draft=True)
+        gh_repo.create_pull(
+            base=BASE_BRANCH, head=BRANCH_NAME, title=title, body=body, draft=True
+        )
     elif pulls.totalCount == 1:
         pull: PullRequest = pulls[0]
         pull.edit(body=body, title=title)
