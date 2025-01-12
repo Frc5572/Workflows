@@ -1,8 +1,11 @@
 {
-    "editor.codeActionsOnSave": {
-      "source.organizeImports": "explicit"
-    },
-    "editor.formatOnSave": true,
-    "editor.formatOnPaste": true,
-    "terminal.integrated.defaultProfile.windows": "Git Bash"
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "terminal.integrated.defaultProfile.windows": "Git Bash",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  }
 }

@@ -19,17 +19,34 @@ SCRIPT_PATH = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", None)
 BASE_BRANCH = os.getenv("BASE_BRANCH", "main")
 REPO_PATH = os.getenv("REPO_PATH", None)
+PR_TITLE = []
+
 
 if __name__ == "__main__":
     auth = Auth.Token(GITHUB_TOKEN)
     g = Github(auth=auth)
     repo = Repo(Path.cwd())
     try:
-        repo.delete_head(BRANCH_NAME)
+        repo.git.checkout(BRANCH_NAME)
+        current_branch = repo.active_branch
+        target_branch = repo.heads[BASE_BRANCH]
+        rebase_branch = repo.create_head("temp_rebase_branch", target_branch)
+        repo.head.reference = rebase_branch
+        repo.head.reset(index=True, working_tree=True)
+        try:
+            repo.git.rebase(current_branch)
+        except exc.GitCommandError as e:
+            # Handle rebase conflicts if any
+            print("Rebase conflicts occurred. Resolve them manually.")
+            print(e)
+        else:
+            # Delete the original branch
+            repo.delete_head(current_branch)
+            # Rename the rebased branch to the original branch name
+            rebase_branch.rename(current_branch)
+            # Update the remote branch (if needed)
     except exc.GitCommandError:
-        pass
-    new_branch = repo.create_head(BRANCH_NAME)
-    new_branch.checkout(force=True)
+        repo.git.checkout("-b", BRANCH_NAME)
 
     print("Checking for WPILIB Updates")
     update_wpilib = False
@@ -46,7 +63,9 @@ if __name__ == "__main__":
     if parse(wpilib_latest_version) > parse(wpilib_version):
         print(f"New WPILIB Version: {wpilib_latest_version}. Updating build.gradle.")
         with build_gradle.open(mode="w", encoding="utf-8") as f:
-            new_build = re.sub(WPILIB_REGEX, rf'\1"{wpilib_latest_version}"', build_file)
+            new_build = re.sub(
+                WPILIB_REGEX, rf'\1"{wpilib_latest_version}"', build_file
+            )
             f.write(new_build)
         update_wpilib = True
         repo.git.add("build.gradle")
@@ -57,6 +76,7 @@ if __name__ == "__main__":
                 "new_version": wpilib_latest_version,
             }
         )
+        PR_TITLE.append("WPILib")
     else:
         print("No new version of WPILIB.")
     print("Checking for Vendor Dep Updates")
@@ -94,12 +114,13 @@ if __name__ == "__main__":
     modified_deps = [x for x in untracked + diffs if x.startswith("vendordeps")]
     if len(modified_deps) > 0:
         repo.git.add("vendordeps/*")
+        PR_TITLE.append("Vendor Dependency")
     else:
         print("No vendor updates")
     if len(modified_deps) == 0 and not update_wpilib:
         sys.exit(0)
 
-    repo.index.commit("Updating Vendor Dependencies and WPILIB")
+    repo.index.commit(f"Updating {', '.join([x.get('name') for x in UPDATED_DEPS])}")
     repo.git.push("--force", "--set-upstream", "origin", repo.head.ref)
 
     gh_repo = g.get_repo(REPO_PATH)
@@ -108,8 +129,11 @@ if __name__ == "__main__":
     )
     with open(SCRIPT_PATH.joinpath("pr-template.j2")) as f:
         body = Template(f.read()).render(deps=UPDATED_DEPS)
+    title = f"{" and ".join(PR_TITLE)} Updates"
     if pulls.totalCount == 0:
-        gh_repo.create_pull(base=BASE_BRANCH, head=BRANCH_NAME, title="Vendor Dependency Updates", body=body, draft=True)
+        gh_repo.create_pull(
+            base=BASE_BRANCH, head=BRANCH_NAME, title=title, body=body, draft=True
+        )
     elif pulls.totalCount == 1:
         pull: PullRequest = pulls[0]
-        pull.edit(body=body)
+        pull.edit(body=body, title=title)
