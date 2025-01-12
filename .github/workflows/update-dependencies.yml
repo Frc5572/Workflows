@@ -14,8 +14,6 @@ on:
 
 permissions:
   packages: read
-  contents: write
-  pull-requests: write
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   vendor-update-check:
@@ -23,26 +21,37 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/frc5572/workflows/vendor-update:${{ inputs.version }}
     steps:      
+      - name: Update Git
+        run: |
+          apk update && apk add git --update-cache
       - name: Generate a token
-        id: generate-token
+        id: app-token
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ vars.VENDOR_UPDATE_APP_ID }}
           private-key: ${{ secrets.VENDOR_UPDATE_PRIVATE_KEY }}
-      - name: Update Git
-        run: |
-          apk update && apk add git --update-cache
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Run Update check
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Get GitHub App User ID
+        id: get-user-id
+        run: echo "user-id=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+      - name: Setup GIT
         run: |
           git config --system --add safe.directory "*"
-          git config --system user.name "Vendor Updater"
-          git config --system user.email "frc5572-vendor@users.noreply.github.com"
+          git config --global user.name '${{ steps.app-token.outputs.app-slug }}[bot]'
+          git config --global user.email '${{ steps.get-user-id.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com'
           git remote set-url origin https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+      - name: Run Update check
+        run: |
           python /app/vendor-update.py
         env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           BASE_BRANCH: ${{ inputs.base_branch }}
           REPO_PATH: ${{ github.repository }}
