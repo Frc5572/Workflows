@@ -22,7 +22,13 @@ jobs:
     name: Check for Vendor Updates
     runs-on: ubuntu-latest
     container: ghcr.io/frc5572/workflows/vendor-update:${{ inputs.version }}
-    steps:
+    steps:      
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.VENDOR_UPDATE_APP_ID }}
+          private-key: ${{ secrets.VENDOR_UPDATE_PRIVATE_KEY }}
       - name: Update Git
         run: |
           apk update && apk add git --update-cache
@@ -33,9 +39,10 @@ jobs:
           git config --system --add safe.directory "*"
           git config --system user.name "Vendor Updater"
           git config --system user.email "frc5572-vendor@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
+          git remote set-url origin https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
           python /app/vendor-update.py
         env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_BRANCH: ${{ inputs.base_branch }}
           REPO_PATH: ${{ github.repository }}
