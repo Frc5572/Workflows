@@ -108,7 +108,8 @@ if __name__ == "__main__":
         with _dir.joinpath(new_file).open(mode="w", encoding="utf-8") as f:
             new_vendor["fileName"] = new_file
             json.dump(new_vendor, f, indent=4)
-        file.unlink()
+        if new_file != file.name:
+            file.unlink()
     untracked = repo.untracked_files
     diffs = [x.a_path for x in repo.index.diff(None)]
     modified_deps = [x for x in untracked + diffs if x.startswith("vendordeps")]
