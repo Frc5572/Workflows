@@ -145,8 +145,10 @@ if __name__ == "__main__":
         url = new_vendor.get("path", "")
         if not url.startswith("http"):
             url = f"{VENDOR_DEP_MARKETPLACE_URL}/{url}"
-        new_file = os.path.basename(urlparse(url).path)
         new_file_data = loadFileFromUrl(url)
+        if new_file_data is None:
+            continue
+        new_file = new_file_data.get("fileName", os.path.basename(urlparse(url).path))
         with _dir.joinpath(new_file).open(mode="w", encoding="utf-8") as f:
             json.dump(new_file_data, f, indent=4)
         if new_file != file.name:
