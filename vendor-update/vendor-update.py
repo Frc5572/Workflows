@@ -27,7 +27,7 @@ VENDOR_DEP_MARKETPLACE_URL = (
 
 
 def getProjectYear() -> str:
-    settings = Path.cwd().joinpath(".wpilib\\wpilib_preferences.json")
+    settings = Path.cwd().joinpath(".wpilib/wpilib_preferences.json")
     with settings.open(mode="r", encoding="utf-8") as f:
         wpilib_settings = json.load(f)
         return wpilib_settings.get("projectYear", None)
