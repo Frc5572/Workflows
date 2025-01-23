@@ -1,8 +1,10 @@
+import functools
 import json
 import os
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 from git import Repo, exc
@@ -10,7 +12,6 @@ from github import Auth, Github, PullRequest
 from jinja2 import Template
 from packaging.version import parse
 
-VENDOR_REGEX = r"(?P<name>[^\s-]+)(?P<versioned>-\d+\.\d+\.\d+)?"
 VERSION = r"(?P<wpilib_version>\d+\.\d+\.\d+)"
 WPILIB_REGEX = rf'(id "edu\.wpi\.first\.GradleRIO" version )"{VERSION}"'
 UPDATED_DEPS = []
@@ -20,6 +21,36 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", None)
 BASE_BRANCH = os.getenv("BASE_BRANCH", "main")
 REPO_PATH = os.getenv("REPO_PATH", None)
 PR_TITLE = []
+VENDOR_DEP_MARKETPLACE_URL = (
+    "https://frcmaven.wpi.edu/artifactory/vendordeps/vendordep-marketplace"
+)
+
+
+def getProjectYear() -> str:
+    settings = Path.cwd().joinpath(".wpilib\\wpilib_preferences.json")
+    with settings.open(mode="r", encoding="utf-8") as f:
+        wpilib_settings = json.load(f)
+        return wpilib_settings.get("projectYear", None)
+    return None
+
+
+def loadFileFromUrl(url: str) -> list | dict:
+    response = requests.get(url)
+    if response.status_code >= 200 and response.status_code < 400:
+        file = response.json()
+        return file
+    return None
+
+
+def compareVersions(item1: str, item2: str):
+    verstion1 = item1.get("version")
+    verstion2 = item2.get("version")
+    if parse(verstion1) < parse(verstion2):
+        return -1
+    elif parse(verstion1) > parse(verstion2):
+        return 1
+    else:
+        return 0
 
 
 if __name__ == "__main__":
@@ -47,7 +78,7 @@ if __name__ == "__main__":
             # Update the remote branch (if needed)
     except exc.GitCommandError:
         repo.git.checkout("-b", BRANCH_NAME)
-
+    projectYear = getProjectYear()
     print("Checking for WPILIB Updates")
     update_wpilib = False
     build_gradle = Path.cwd().joinpath("build.gradle")
@@ -60,7 +91,9 @@ if __name__ == "__main__":
         sys.exit(1)
     wpilib_repo = g.get_repo("wpilibsuite/allwpilib")
     wpilib_latest_version = wpilib_repo.get_latest_release().tag_name.replace("v", "")
-    if parse(wpilib_latest_version) > parse(wpilib_version):
+    if parse(wpilib_latest_version) > parse(
+        wpilib_version
+    ) and wpilib_latest_version.startswith(projectYear):
         print(f"New WPILIB Version: {wpilib_latest_version}. Updating build.gradle.")
         with build_gradle.open(mode="w", encoding="utf-8") as f:
             new_build = re.sub(
@@ -80,34 +113,39 @@ if __name__ == "__main__":
     else:
         print("No new version of WPILIB.")
     print("Checking for Vendor Dep Updates")
+    manifestURL = f"{VENDOR_DEP_MARKETPLACE_URL}/{projectYear}.json"
+    onlineDeps = loadFileFromUrl(manifestURL)
     _dir = Path.cwd().joinpath("vendordeps")
     for file in _dir.glob("*.json"):
-        print(file.stem)
         with file.open(mode="r", encoding="utf-8") as f:
             vendor: dict = json.load(f)
-        file_regex = re.match(VENDOR_REGEX, file.stem)
-        json_url = vendor.get("jsonUrl", None)
+        uuid = vendor.get("uuid")
         version = vendor.get("version")
-        if json_url is None or json_url == "":
+        name = vendor.get("name")
+        print(name)
+        vendor_versions = [x for x in onlineDeps if x.get("uuid", "") == uuid]
+        if len(vendor_versions) == 0:
             continue
-        new_vendor: dict = requests.get(json_url).json()
+        vendor_versions.sort(key=functools.cmp_to_key(compareVersions), reverse=True)
+        new_vendor = vendor_versions[0]
         new_version = new_vendor.get("version")
         if parse(new_version) <= parse(version):
             continue
+        print(f"{version} -> {new_version}")
         UPDATED_DEPS.append(
             {
-                "name": file_regex.groupdict().get("name", None),
+                "name": name,
                 "old_version": version,
                 "new_version": new_version,
             }
         )
-        file_version = ""
-        if file_regex.groupdict().get("versioned", None) is not None:
-            file_version = f"-{new_version}"
-        new_file = f"{file_regex.groupdict().get("name", None)}{file_version}.json"
+        url = new_vendor.get("path", "")
+        if not url.startswith("http"):
+            url = f"{VENDOR_DEP_MARKETPLACE_URL}/{url}"
+        new_file = os.path.basename(urlparse(url).path)
+        new_file_data = loadFileFromUrl(url)
         with _dir.joinpath(new_file).open(mode="w", encoding="utf-8") as f:
-            new_vendor["fileName"] = new_file
-            json.dump(new_vendor, f, indent=4)
+            json.dump(new_file_data, f, indent=4)
         if new_file != file.name:
             file.unlink()
     untracked = repo.untracked_files
