@@ -1,9 +1,9 @@
 The following vendor dependencies have been updated.
 
-| Vendor | Change |
-|---|---|
+| Vendor | Change | Website |
+|---|---|---|
 {% for item in deps -%}
-| {{ item.name }} | {{ item.old_version }} -> {{ item.new_version }} |
+| {{ item.name }} | {{ item.old_version }} -> {{ item.new_version }} | [{{ item.website }}]({{ item.website }}) |
 {% endfor %}
 
 - [ ] This PR has been deployed and tested to the robot to confirm functionality?

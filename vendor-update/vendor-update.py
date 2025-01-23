@@ -90,7 +90,8 @@ if __name__ == "__main__":
         print("Could not determine current WPILIB version")
         sys.exit(1)
     wpilib_repo = g.get_repo("wpilibsuite/allwpilib")
-    wpilib_latest_version = wpilib_repo.get_latest_release().tag_name.replace("v", "")
+    wpilib_latest_release = wpilib_repo.get_latest_release()
+    wpilib_latest_version = wpilib_latest_release.tag_name.replace("v", "")
     if parse(wpilib_latest_version) > parse(
         wpilib_version
     ) and wpilib_latest_version.startswith(projectYear):
@@ -107,6 +108,7 @@ if __name__ == "__main__":
                 "name": "WPILib",
                 "old_version": wpilib_version,
                 "new_version": wpilib_latest_version,
+                "website": f"{wpilib_latest_release.html_url}",
             }
         )
         PR_TITLE.append("WPILib")
@@ -137,6 +139,7 @@ if __name__ == "__main__":
                 "name": name,
                 "old_version": version,
                 "new_version": new_version,
+                "website": new_vendor.get("website"),
             }
         )
         url = new_vendor.get("path", "")
@@ -168,6 +171,7 @@ if __name__ == "__main__":
     )
     with open(SCRIPT_PATH.joinpath("pr-template.j2")) as f:
         body = Template(f.read()).render(deps=UPDATED_DEPS)
+        print(body)
     title = f"{" and ".join(PR_TITLE)} Updates"
     if pulls.totalCount == 0:
         gh_repo.create_pull(
