@@ -5,6 +5,11 @@ name: FRC CI Checks
 # Controls when the action will run.
 on:
   workflow_call:
+    inputs:
+      codespell_ignore:
+        required: false
+        type: string
+        default: ""
 
 env:
   PAGES_DIR: "./build/docs/javadoc"
@@ -37,6 +42,7 @@ jobs:
         uses: codespell-project/actions-codespell@master
         with:
           check_filenames: true
+          ignore_words_file: ${{ inputs.codespell_ignore }}
   merge_conflict_job:
     runs-on: ubuntu-latest
     name: Find merge conflicts
