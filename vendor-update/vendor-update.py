@@ -20,6 +20,9 @@ SCRIPT_PATH = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", None)
 BASE_BRANCH = os.getenv("BASE_BRANCH", "main")
 REPO_PATH = os.getenv("REPO_PATH", None)
+PR_REVIEWERS = os.getenv("PR_REVIEWERS", [])
+PR_TEAM_REVIEWERS = os.getenv("PR_TEAM_REVIEWERS", ["admins"])
+
 PR_TITLE = []
 VENDOR_DEP_MARKETPLACE_URL = (
     "https://frcmaven.wpi.edu/artifactory/vendordeps/vendordep-marketplace"
@@ -181,9 +184,15 @@ if __name__ == "__main__":
         print(body)
     title = f"{" and ".join(PR_TITLE)} Updates"
     if pulls.totalCount == 0:
-        gh_repo.create_pull(
+        pull = gh_repo.create_pull(
             base=BASE_BRANCH, head=BRANCH_NAME, title=title, body=body, draft=True
         )
+        pull.create_review_request(team_reviewers=PR_TEAM_REVIEWERS, reviewers=PR_REVIEWERS)
     elif pulls.totalCount == 1:
         pull: PullRequest = pulls[0]
         pull.edit(body=body, title=title)
+        users, teams = pull.get_review_requests()
+        new_users = list(set(PR_REVIEWERS + [user.login for user in users]))
+        new_teams = list(set(PR_TEAM_REVIEWERS + [team.name for team in teams]))
+        pull.create_review_request(team_reviewers=PR_TEAM_REVIEWERS, reviewers=new_users)
+        
