@@ -128,6 +128,11 @@ if __name__ == "__main__":
         vendor_versions = [x for x in onlineDeps if x.get("uuid", "") == uuid]
         if len(vendor_versions) == 0:
             continue
+        vendor_versions = [
+            version
+            for version in vendor_versions
+            if all(name not in version.get("version") for name in {"alpha", "beta"})
+        ]
         vendor_versions.sort(key=functools.cmp_to_key(compareVersions), reverse=True)
         new_vendor = vendor_versions[0]
         new_version = new_vendor.get("version")
