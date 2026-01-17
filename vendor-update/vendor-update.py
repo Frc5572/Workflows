@@ -53,6 +53,41 @@ def compareVersions(item1: str, item2: str):
         return 0
 
 
+def get_project() -> str | None:
+    url = "https://api.github.com/orgs/FRC5572/projectsV2"
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Accept": "application/vnd.github+json",
+    }
+    projects: list[dict[str, str]] = requests.get(url, headers=headers)
+    projects.raise_for_status()
+    proj_year = getProjectYear()
+    projects = [pro for pro in projects if proj_year in pro.get("title")]
+    if len(projects) == 0:
+        return None
+    return projects[0].get("id", None)
+
+
+def assign_pr_to_project(pr: PullRequest.PullRequest, project_id: str) -> bool:
+    url = f"https://api.github.com/orgs/FRC5572/projectsV2/{project_id}/items"
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Accept": "application/vnd.github+json",
+    }
+    data = {
+        "type": "PullRequest",
+        "owner": pr.head.user.login,
+        "repo": pr.head.repo.name,
+        "number": pr.number,
+    }
+    projects: list[dict[str, str]] = requests.post(url, headers=headers, json=data)
+    projects.raise_for_status()
+    print("PR added to Project")
+    return True
+
+
 if __name__ == "__main__":
     auth = Auth.Token(GITHUB_TOKEN)
     g = Github(auth=auth)
@@ -181,9 +216,11 @@ if __name__ == "__main__":
         print(body)
     title = f"{" and ".join(PR_TITLE)} Updates"
     if pulls.totalCount == 0:
-        gh_repo.create_pull(
+        pr = gh_repo.create_pull(
             base=BASE_BRANCH, head=BRANCH_NAME, title=title, body=body, draft=True
         )
+        if project_id := get_project() is not None:
+            assign_pr_to_project(pr, project_id)
     elif pulls.totalCount == 1:
         pull: PullRequest = pulls[0]
         pull.edit(body=body, title=title)
