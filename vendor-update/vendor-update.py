@@ -70,7 +70,7 @@ def get_project() -> str | None:
     year = max(proj_year, current_year)
     projects: list[dict[str, str | int]] = resp.json()
     projects = [pro for pro in projects if str(year) in pro.get("title")]
-    # projects.sort(key="number", reverse=True)
+    projects = sorted(projects, key=lambda x: x["number"], reverse=True)
     if len(projects) == 0:
         return None
     return projects[0].get("number", None)
