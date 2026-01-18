@@ -66,7 +66,7 @@ def get_project() -> str | None:
     projects = [pro for pro in projects.json() if proj_year in pro.get("title")]
     if len(projects) == 0:
         return None
-    return projects[0].get("id", None)
+    return projects[0].get("number", None)
 
 
 def assign_pr_to_project(pr: PullRequest.PullRequest, project_id: str) -> bool:
@@ -219,8 +219,8 @@ if __name__ == "__main__":
         pr = gh_repo.create_pull(
             base=BASE_BRANCH, head=BRANCH_NAME, title=title, body=body, draft=True
         )
-        if (project_id := get_project()) is not None:
-            assign_pr_to_project(pr, project_id)
+        if (project_number := get_project()) is not None:
+            assign_pr_to_project(pr, project_number)
     elif pulls.totalCount == 1:
         pull: PullRequest = pulls[0]
         pull.edit(body=body, title=title)
