@@ -63,15 +63,16 @@ def get_project() -> str | None:
         "X-GitHub-Api-Version": "2022-11-28",
         "Accept": "application/vnd.github+json",
     }
-    projects: list[dict[str, str]] = requests.get(url, headers=headers)
-    projects.raise_for_status()
+    resp = requests.get(url, headers=headers)
+    resp.raise_for_status()
     proj_year = int(getProjectYear())
     current_year = date.today().year
     year = max(proj_year, current_year)
-    projects = [pro for pro in projects.json() if year in pro.get("title")]
-    projects.sort(key="number", reverse=True)
+    projects: list[dict[str, str | int]] = resp.json()
+    projects = [pro for pro in projects if str(year) in pro.get("title")]
     if len(projects) == 0:
         return None
+    projects = sorted(projects, key=lambda x: x["number"], reverse=True)
     return projects[0].get("number", None)
 
 
