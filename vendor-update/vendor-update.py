@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -64,8 +65,11 @@ def get_project() -> str | None:
     }
     projects: list[dict[str, str]] = requests.get(url, headers=headers)
     projects.raise_for_status()
-    proj_year = getProjectYear()
-    projects = [pro for pro in projects.json() if proj_year in pro.get("title")]
+    proj_year = int(getProjectYear())
+    current_year = date.today().year
+    year = max(proj_year, current_year)
+    projects = [pro for pro in projects.json() if year in pro.get("title")]
+    projects.sort(key="number", reverse=True)
     if len(projects) == 0:
         return None
     return projects[0].get("number", None)
@@ -243,4 +247,5 @@ if __name__ == "__main__":
         pr.edit(body=body, title=title)
     # Assign PR to project
     if (project_number := get_project()) is not None:
+        assign_pr_to_project(pr, project_number)
         assign_pr_to_project(pr, project_number)
