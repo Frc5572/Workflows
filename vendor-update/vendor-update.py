@@ -8,9 +8,11 @@ from urllib.parse import urlparse
 
 import requests
 from git import Repo, exc
-from github import Auth, Github, PullRequest
+from github import Auth, Github
+from github.PullRequest import PullRequest
 from jinja2 import Template
 from packaging.version import parse
+from requests.exceptions import HTTPError
 
 VERSION = r"(?P<wpilib_version>\d+\.\d+\.\d+)"
 WPILIB_REGEX = rf'(id "edu\.wpi\.first\.GradleRIO" version )"{VERSION}"'
@@ -69,7 +71,7 @@ def get_project() -> str | None:
     return projects[0].get("number", None)
 
 
-def assign_pr_to_project(pr: PullRequest.PullRequest, project_id: str) -> bool:
+def assign_pr_to_project(pr: PullRequest, project_id: str) -> bool:
     url = f"https://api.github.com/orgs/FRC5572/projectsV2/{project_id}/items"
     headers = {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -82,10 +84,27 @@ def assign_pr_to_project(pr: PullRequest.PullRequest, project_id: str) -> bool:
         "repo": pr.head.repo.name,
         "number": pr.number,
     }
-    projects: list[dict[str, str]] = requests.post(url, headers=headers, json=data)
-    projects.raise_for_status()
-    print("PR added to Project")
-    return True
+    try:
+        response: list[dict[str, str]] = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+        print("PR added to Project")
+        return True
+    except HTTPError as http_err:
+        if response.status_code == 422:
+            print(f"A 422 Unprocessable Entity error occurred: {http_err}")
+            error_details = response.json()
+            if (
+                error_details.get("message", "")
+                == "Content already exists in this project"
+            ):
+                return True
+        print(f"Exception: {http_err}")
+        raise
+
+    except requests.exceptions.RequestException as req_err:
+        # Handle other requests-related errors (e.g., connection issues, timeouts)
+        print(f"A non-HTTP requests error occurred: {req_err}")
+        raise
 
 
 if __name__ == "__main__":
@@ -219,8 +238,9 @@ if __name__ == "__main__":
         pr = gh_repo.create_pull(
             base=BASE_BRANCH, head=BRANCH_NAME, title=title, body=body, draft=True
         )
-        if (project_number := get_project()) is not None:
-            assign_pr_to_project(pr, project_number)
     elif pulls.totalCount == 1:
-        pull: PullRequest = pulls[0]
-        pull.edit(body=body, title=title)
+        pr: PullRequest = pulls[0]
+        pr.edit(body=body, title=title)
+    # Assign PR to project
+    if (project_number := get_project()) is not None:
+        assign_pr_to_project(pr, project_number)
