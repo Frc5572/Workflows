@@ -68,7 +68,7 @@ def get_project() -> str | None:
     proj_year = int(getProjectYear())
     current_year = date.today().year
     year = max(proj_year, current_year)
-    projects = [pro for pro in projects.json() if year in pro.get("title")]
+    projects = [pro for pro in projects.json() if str(year) in pro.get("title")]
     projects.sort(key="number", reverse=True)
     if len(projects) == 0:
         return None
