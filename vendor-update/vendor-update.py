@@ -63,7 +63,7 @@ def get_project() -> str | None:
     projects: list[dict[str, str]] = requests.get(url, headers=headers)
     projects.raise_for_status()
     proj_year = getProjectYear()
-    projects = [pro for pro in projects if proj_year in pro.get("title")]
+    projects = [pro for pro in projects.json() if proj_year in pro.get("title")]
     if len(projects) == 0:
         return None
     return projects[0].get("id", None)
