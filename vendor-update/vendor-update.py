@@ -219,7 +219,7 @@ if __name__ == "__main__":
         pr = gh_repo.create_pull(
             base=BASE_BRANCH, head=BRANCH_NAME, title=title, body=body, draft=True
         )
-        if project_id := get_project() is not None:
+        if (project_id := get_project()) is not None:
             assign_pr_to_project(pr, project_id)
     elif pulls.totalCount == 1:
         pull: PullRequest = pulls[0]
