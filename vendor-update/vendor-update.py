@@ -192,6 +192,8 @@ if __name__ == "__main__":
             for version in vendor_versions
             if all(name not in version.get("version") for name in {"alpha", "beta"})
         ]
+        if len(vendor_versions) == 0:
+            continue
         vendor_versions.sort(key=functools.cmp_to_key(compareVersions), reverse=True)
         new_vendor = vendor_versions[0]
         new_version = new_vendor.get("version")
